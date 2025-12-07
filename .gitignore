@@ -1,0 +1,188 @@
+# ============================================
+# MAXIMUM SECURITY .gitignore
+# Real-Time Sensor Fusion Dashboard
+# ============================================
+
+# ============================================
+# 🔐 SECURITY - CREDENTIALS & SECRETS
+# ============================================
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.gpg
+*.asc
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+credentials/
+auth/
+config/secrets.json
+config/credentials.json
+
+# YubiKey & Hardware Security
+.yubikey/
+yubikey.conf
+*.yubikey
+piv-certs/
+openpgp/
+.gnupg/
+.ssh/id_*
+.ssh/*_rsa*
+.ssh/*_ed25519*
+.ssh/*_ecdsa*
+*.pub
+ssh_host_*
+
+# API Keys & Tokens
+*_api_key*
+*_secret_key*
+*_token*
+.apikeys
+bearer_token*
+
+# ============================================
+# 🦀 RUST BACKEND
+# ============================================
+backend/target/
+backend/**/*.rs.bk
+backend/**/*.pdb
+backend/Cargo.lock  # Uncomment if library
+
+# ============================================
+# 🐍 PYTHON ML SERVICE
+# ============================================
+ml-service/__pycache__/
+ml-service/**/*.py[cod]
+ml-service/**/*$py.class
+ml-service/**/*.so
+ml-service/.Python
+ml-service/venv/
+ml-service/ENV/
+ml-service/env/
+ml-service/.venv
+ml-service/pip-log.txt
+ml-service/pip-delete-this-directory.txt
+ml-service/.pytest_cache/
+ml-service/.coverage
+ml-service/htmlcov/
+ml-service/*.egg-info/
+ml-service/dist/
+ml-service/build/
+ml-service/.ipynb_checkpoints
+
+# ML Models & Data
+ml-service/models/*.pkl
+ml-service/models/*.h5
+ml-service/models/*.pt
+ml-service/models/*.pth
+ml-service/models/*.onnx
+ml-service/data/raw/
+ml-service/data/processed/
+
+# ============================================
+# ⚛️ REACT FRONTEND
+# ============================================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+
+# ============================================
+# 💻 IDE & EDITORS
+# ============================================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# ============================================
+# 🖥️ OPERATING SYSTEMS
+# ============================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================
+# 📊 LOGS & DATABASES
+# ============================================
+*.log
+logs/
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================================
+# 🔧 BUILD & TEMP FILES
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.cache
+.cache/
+tmp/
+temp/
+
+# ============================================
+# 📦 PACKAGE MANAGERS
+# ============================================
+.npm
+.yarn/
+.pnpm-store/
+
+# ============================================
+# 🧪 TESTING
+# ============================================
+coverage/
+.nyc_output/
+test-results/
+*.lcov
+
+# ============================================
+# 🚀 DEPLOYMENT & CI/CD
+# ============================================
+.terraform/
+*.tfstate
+*.tfstate.backup
+.serverless/
+.netlify/
+.vercel/
+
+# ============================================
+# END OF SECURITY GITIGNORE
+# ============================================
