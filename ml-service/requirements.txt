@@ -16,7 +16,7 @@ scipy==1.11.4
 statsmodels==0.14.1
 
 # Async Support
-aiohttp==3.9.1
+aiohttp==3.12.14
 
 # Data Validation
 pydantic==2.5.3
