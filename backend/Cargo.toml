@@ -1,0 +1,58 @@
+[package]
+name = "sensor-fusion-backend"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "High-performance real-time sensor fusion telemetry backend"
+license = "MIT"
+repository = "https://github.com/yourusername/Real-Time-Sensor-Fusion-Dashboard"
+
+[dependencies]
+# Async Runtime - Production-grade async/await
+tokio = { version = "1.35", features = ["full"] }
+tokio-tungstenite = "0.21"  # WebSocket server
+
+# Serialization - Fast, type-safe data serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Networking & WebSocket
+futures-util = "0.3"
+tungstenite = "0.21"
+
+# Math & Signal Processing
+nalgebra = "0.32"  # Linear algebra for sensor fusion
+rand = "0.8"        # Sensor simulation with realistic noise
+rand_distr = "0.4"  # Statistical distributions for noise
+
+# Time & Synchronization
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging - Structured logging for production
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error Handling - Professional error management
+anyhow = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+# Testing utilities
+tokio-test = "0.4"
+pretty_assertions = "1.4"
+
+[profile.release]
+# Optimize for performance in production
+opt-level = 3
+lto = true           # Link-time optimization
+codegen-units = 1    # Better optimization, slower compile
+panic = "abort"      # Smaller binary size
+strip = true         # Remove debug symbols
+
+[profile.dev]
+# Fast compilation for development
+opt-level = 0
+
+[profile.dev.package."*"]
+# Optimize dependencies even in dev mode for better performance
+opt-level = 2
