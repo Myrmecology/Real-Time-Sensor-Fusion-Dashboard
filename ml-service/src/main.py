@@ -221,15 +221,14 @@ async def main():
     # Create and start service
     service = MLService(config)
     
-    # Setup signal handlers for graceful shutdown
-    loop = asyncio.get_event_loop()
-    
-    def signal_handler():
+    # Setup signal handlers for graceful shutdown (Windows compatible)
+    def signal_handler(signum, frame):
         logger.info("⚠️  Shutdown signal received")
-        asyncio.create_task(service.shutdown())
+        # Don't use asyncio.create_task here on Windows
+        raise KeyboardInterrupt()
     
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     
     # Start service
     await service.start()
