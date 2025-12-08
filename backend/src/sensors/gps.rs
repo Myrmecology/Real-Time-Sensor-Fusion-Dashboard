@@ -41,14 +41,15 @@ pub struct GpsSimulator {
     /// Simulation update counter
     update_count: u64,
     
-    /// Random number generator
-    rng: rand::rngs::ThreadRng,
+    /// Random number generator (using thread-safe StdRng)
+    rng: rand::rngs::StdRng,
 }
 
 impl GpsSimulator {
     /// Create a new GPS simulator starting at a default location
     /// Starting position: Denver, Colorado area (example coordinates)
     pub fn new() -> Self {
+        use rand::SeedableRng;
         let start_position = (39.7392, -104.9903, 1655.0); // Lat, Lon, Alt (meters)
         
         Self {
@@ -61,7 +62,7 @@ impl GpsSimulator {
             position_noise_std: 2.5, // ~2.5 meter accuracy
             last_good_position: start_position,
             update_count: 0,
-            rng: rand::thread_rng(),
+            rng: rand::rngs::StdRng::from_entropy(),
         }
     }
 

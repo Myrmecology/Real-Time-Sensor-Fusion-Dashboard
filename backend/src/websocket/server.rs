@@ -99,7 +99,7 @@ async fn handle_connection(
         .context("Failed to send welcome message")?;
     
     // Spawn task to receive messages from client (e.g., ML predictions, commands)
-    let receive_task = tokio::spawn(async move {
+   let mut receive_task = tokio::spawn(async move {
         handle_incoming_messages(&mut ws_receiver, peer_addr).await
     });
     

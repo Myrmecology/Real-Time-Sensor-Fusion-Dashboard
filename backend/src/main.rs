@@ -65,10 +65,13 @@ async fn main() -> Result<()> {
     let (tx, _rx) = broadcast::channel::<FusedSensorData>(100);
     let tx = Arc::new(tx);
 
+    // Clone config for later use
+    let config_clone = config.clone();
+
     // Spawn sensor simulation task
     let sensor_tx = tx.clone();
     let sensor_handle = tokio::spawn(async move {
-        if let Err(e) = run_sensor_fusion_loop(sensor_tx, config.clone()).await {
+        if let Err(e) = run_sensor_fusion_loop(sensor_tx, config_clone).await {
             error!("❌ Sensor fusion loop error: {}", e);
         }
     });

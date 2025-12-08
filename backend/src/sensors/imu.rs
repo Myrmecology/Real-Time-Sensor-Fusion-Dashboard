@@ -34,13 +34,14 @@ pub struct ImuSimulator {
     /// Simulation time step counter
     tick_count: u64,
     
-    /// Random number generator
-    rng: rand::rngs::ThreadRng,
+    /// Random number generator (using thread-safe StdRng)
+    rng: rand::rngs::StdRng,
 }
 
 impl ImuSimulator {
     /// Create a new IMU simulator with default parameters
     pub fn new() -> Self {
+        use rand::SeedableRng;
         Self {
             orientation: (0.0, 0.0, 0.0),
             angular_velocity: Vec3::zero(),
@@ -49,7 +50,7 @@ impl ImuSimulator {
             accel_noise_std: 0.05,  // 0.05 m/s² noise
             gyro_noise_std: 0.005,  // 0.005 rad/s noise
             tick_count: 0,
-            rng: rand::thread_rng(),
+            rng: rand::rngs::StdRng::from_entropy(),
         }
     }
 
