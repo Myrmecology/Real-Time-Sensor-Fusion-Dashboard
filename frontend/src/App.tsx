@@ -16,7 +16,7 @@ function App() {
   const WS_URL = 'ws://127.0.0.1:8080'
   
   // Custom WebSocket hook
-  const { isConnected, lastMessage, sendMessage } = useWebSocket(WS_URL, {
+  const { lastMessage, sendMessage } = useWebSocket(WS_URL, {
     onOpen: () => {
       console.log('✅ WebSocket connected')
       setConnectionStatus('connected')

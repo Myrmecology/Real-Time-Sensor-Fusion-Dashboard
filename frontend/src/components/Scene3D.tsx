@@ -5,7 +5,7 @@
  * Renders a drone/vehicle model that rotates based on sensor data
  */
 
-import { useRef, useEffect } from 'react'
+import { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -238,57 +238,7 @@ function Scene3D({ sensorData }: Scene3DProps) {
         <div className="axis-label axis-z">Z (Yaw)</div>
       </div>
 
-      <style jsx>{`
-        .scene-container {
-          width: 100%;
-          height: 400px;
-          position: relative;
-          border-radius: 8px;
-          overflow: hidden;
-          background: linear-gradient(135deg, #0a0a0f 0%, #12121a 100%);
-        }
-
-        .canvas-3d {
-          width: 100%;
-          height: 100%;
-        }
-
-        .axis-labels {
-          position: absolute;
-          bottom: 10px;
-          left: 10px;
-          display: flex;
-          gap: 15px;
-          pointer-events: none;
-        }
-
-        .axis-label {
-          padding: 4px 10px;
-          border-radius: 6px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          background: rgba(26, 26, 36, 0.8);
-          backdrop-filter: blur(5px);
-          border: 1px solid;
-        }
-
-        .axis-x {
-          color: #ff3366;
-          border-color: rgba(255, 51, 102, 0.5);
-        }
-
-        .axis-y {
-          color: #00ff88;
-          border-color: rgba(0, 255, 136, 0.5);
-        }
-
-        .axis-z {
-          color: #00d4ff;
-          border-color: rgba(0, 212, 255, 0.5);
-        }
-      `}</style>
+      
     </div>
   )
 }

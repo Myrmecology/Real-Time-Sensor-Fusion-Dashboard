@@ -28,7 +28,7 @@ interface LiveChartProps {
 /**
  * Custom tooltip with cyberpunk styling
  */
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload }: any) {
   if (!active || !payload || !payload.length) {
     return null
   }
@@ -50,47 +50,7 @@ function CustomTooltip({ active, payload, label }: any) {
         ))}
       </div>
 
-      <style jsx>{`
-        .custom-tooltip {
-          background: rgba(26, 26, 36, 0.95);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(0, 212, 255, 0.3);
-          border-radius: 8px;
-          padding: 12px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-
-        .tooltip-content {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .tooltip-entry {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.875rem;
-        }
-
-        .tooltip-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          box-shadow: 0 0 6px currentColor;
-        }
-
-        .tooltip-label {
-          color: #a0a0b0;
-          font-weight: 500;
-        }
-
-        .tooltip-value {
-          font-weight: 700;
-          font-family: 'JetBrains Mono', monospace;
-          margin-left: auto;
-        }
-      `}</style>
+      
     </div>
   )
 }
@@ -160,7 +120,7 @@ function LiveChart({ data, dataKeys, colors, domain, height = 200 }: LiveChartPr
               fontSize: '0.75rem',
               color: '#a0a0b0',
             }}
-            formatter={(value, entry: any, index) => (
+            formatter={(_value, _entry: any, index) => (
               <span style={{ color: colors[index] }}>
                 {legendLabels[index]}
               </span>
@@ -183,23 +143,7 @@ function LiveChart({ data, dataKeys, colors, domain, height = 200 }: LiveChartPr
         </LineChart>
       </ResponsiveContainer>
 
-      <style jsx>{`
-        .chart-container {
-          width: 100%;
-          height: 100%;
-          position: relative;
-        }
-
-        .chart-container :global(.recharts-cartesian-axis-tick-value) {
-          font-family: 'JetBrains Mono', monospace;
-        }
-
-        .chart-container :global(.recharts-legend-item-text) {
-          font-weight: 600 !important;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-      `}</style>
+      
     </div>
   )
 }

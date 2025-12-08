@@ -49,7 +49,7 @@ function useWebSocket(
 
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectCountRef = useRef(0)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shouldReconnectRef = useRef(true)
   const messageQueueRef = useRef<string[]>([])
 
