@@ -32,6 +32,8 @@ function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
   const [chartHistory, setChartHistory] = useState<ChartData[]>([])
   const [showAnomalyAlert, setShowAnomalyAlert] = useState(false)
   const lastUpdateRef = useRef<number>(0)
+  const lastAnomalyAlertRef = useRef<number>(0)
+  const anomalyAlertDismissedRef = useRef(false)
   const MAX_HISTORY_LENGTH = 100 // Keep last 100 data points
 
   // Update chart history with throttling to prevent infinite loops
@@ -63,12 +65,28 @@ function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
       return updated
     })
 
-    // Check for anomalies
+    // Check for anomalies (only show alert once per anomaly event)
+    const currentTime = Date.now()
     if (sensorData.anomaly_score && sensorData.anomaly_score > 0.7) {
-      setShowAnomalyAlert(true)
-      // Auto-hide after 5 seconds
-      const timer = setTimeout(() => setShowAnomalyAlert(false), 5000)
-      return () => clearTimeout(timer)
+      // Only show alert if:
+      // 1. It hasn't been dismissed manually
+      // 2. At least 10 seconds since last alert
+      if (!anomalyAlertDismissedRef.current && 
+          currentTime - lastAnomalyAlertRef.current > 10000) {
+        setShowAnomalyAlert(true)
+        lastAnomalyAlertRef.current = currentTime
+        
+        // Auto-hide after 5 seconds
+        const timer = setTimeout(() => {
+          setShowAnomalyAlert(false)
+          anomalyAlertDismissedRef.current = true
+          // Reset dismissed flag after 15 seconds
+          setTimeout(() => {
+            anomalyAlertDismissedRef.current = false
+          }, 15000)
+        }, 5000)
+        return () => clearTimeout(timer)
+      }
     }
   }, [sensorData])
 
@@ -82,7 +100,14 @@ function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
       {showAnomalyAlert && (
         <AnomalyAlert
           score={sensorData.anomaly_score || 0}
-          onClose={() => setShowAnomalyAlert(false)}
+          onClose={() => {
+            setShowAnomalyAlert(false)
+            anomalyAlertDismissedRef.current = true
+            // Reset after 15 seconds
+            setTimeout(() => {
+              anomalyAlertDismissedRef.current = false
+            }, 15000)
+          }}
         />
       )}
 
