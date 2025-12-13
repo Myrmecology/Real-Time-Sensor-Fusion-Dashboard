@@ -4,7 +4,7 @@
  * Main dashboard layout that coordinates all visualization components
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Scene3D from './Scene3D'
 import LiveChart from './LiveChart'
 import SensorPanel from './SensorPanel'
@@ -31,10 +31,18 @@ interface ChartData {
 function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
   const [chartHistory, setChartHistory] = useState<ChartData[]>([])
   const [showAnomalyAlert, setShowAnomalyAlert] = useState(false)
+  const lastUpdateRef = useRef<number>(0)
   const MAX_HISTORY_LENGTH = 100 // Keep last 100 data points
 
-  // Update chart history
+  // Update chart history with throttling to prevent infinite loops
   useEffect(() => {
+    const now = Date.now()
+    // Only update every 100ms to prevent infinite loops
+    if (now - lastUpdateRef.current < 100) {
+      return
+    }
+    lastUpdateRef.current = now
+
     const dataPoint: ChartData = {
       timestamp: Date.now(),
       gyroX: sensorData.raw_gyroscope.x,
@@ -59,7 +67,8 @@ function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
     if (sensorData.anomaly_score && sensorData.anomaly_score > 0.7) {
       setShowAnomalyAlert(true)
       // Auto-hide after 5 seconds
-      setTimeout(() => setShowAnomalyAlert(false), 5000)
+      const timer = setTimeout(() => setShowAnomalyAlert(false), 5000)
+      return () => clearTimeout(timer)
     }
   }, [sensorData])
 
@@ -216,8 +225,6 @@ function Dashboard({ sensorData, onInjectFault }: DashboardProps) {
           </div>
         </section>
       </main>
-
-      
     </div>
   )
 }

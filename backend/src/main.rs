@@ -6,7 +6,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{info, error};
+use tracing::{info, error, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod models;
@@ -65,19 +65,27 @@ async fn main() -> Result<()> {
     let (tx, _rx) = broadcast::channel::<FusedSensorData>(100);
     let tx = Arc::new(tx);
 
+    // Create command channel for fault injection
+    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let cmd_tx = Arc::new(cmd_tx);
+
+    // Create shared state for anomaly scores from ML service
+    let anomaly_score = Arc::new(tokio::sync::RwLock::new(None::<f64>));
+
     // Clone config for later use
     let config_clone = config.clone();
+    let anomaly_score_read = anomaly_score.clone();
 
-    // Spawn sensor simulation task
+    // Spawn sensor simulation task with command receiver and anomaly score state
     let sensor_tx = tx.clone();
     let sensor_handle = tokio::spawn(async move {
-        if let Err(e) = run_sensor_fusion_loop(sensor_tx, config_clone).await {
+        if let Err(e) = run_sensor_fusion_loop(sensor_tx, config_clone, cmd_rx, anomaly_score_read).await {
             error!("❌ Sensor fusion loop error: {}", e);
         }
     });
 
-    // Start WebSocket server
-    let ws_server = WebSocketServer::new(config.ws_port, tx.clone());
+    // Start WebSocket server with command channel and anomaly score state
+    let ws_server = WebSocketServer::new(config.ws_port, tx.clone(), cmd_tx.clone(), anomaly_score.clone());
     let server_handle = tokio::spawn(async move {
         if let Err(e) = ws_server.run().await {
             error!("❌ WebSocket server error: {}", e);
@@ -109,10 +117,12 @@ async fn main() -> Result<()> {
 
 /// Main sensor fusion loop
 /// 
-/// This function orchestrates sensor simulation, data fusion, and broadcasting.
+/// This function orchestrates sensor simulation, data fusion, command handling, and broadcasting.
 async fn run_sensor_fusion_loop(
     tx: Arc<broadcast::Sender<FusedSensorData>>,
     config: Config,
+    mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+    anomaly_score: Arc<tokio::sync::RwLock<Option<f64>>>,
 ) -> Result<()> {
     info!("🔧 Initializing sensor simulators and fusion engine");
 
@@ -138,16 +148,47 @@ async fn run_sensor_fusion_loop(
                 let gps_data = gps.get_latest();
                 
                 // Perform sensor fusion
-                let fused_data = filter.update(imu_data, gps_data);
+                let mut fused_data = filter.update(imu_data, gps_data);
+                
+                // Add latest anomaly score from ML service
+                if let Ok(score) = anomaly_score.try_read() {
+                    fused_data.anomaly_score = *score;
+                }
                 
                 // Broadcast to all connected clients (non-blocking)
-                // If all receivers are dropped or lagging, this won't block
                 let _ = tx.send(fused_data);
             }
             
             // Low-frequency GPS updates
             _ = gps_ticker.tick() => {
                 gps.update();
+            }
+            
+            // Handle fault injection commands from WebSocket clients
+            Some(cmd) = cmd_rx.recv() => {
+                info!("⚡ Received command: {}", cmd);
+                match cmd.as_str() {
+                    "accel_spike" => {
+                        info!("💥 Injecting accelerometer spike!");
+                        imu.inject_fault(crate::sensors::imu::FaultType::AccelSpike);
+                    }
+                    "gyro_spike" => {
+                        info!("💥 Injecting gyroscope spike!");
+                        imu.inject_fault(crate::sensors::imu::FaultType::GyroSpike);
+                    }
+                    "high_noise" => {
+                        info!("💥 Injecting high noise!");
+                        imu.inject_fault(crate::sensors::imu::FaultType::HighNoise);
+                    }
+                    "reset" => {
+                        info!("✅ Resetting all faults");
+                        imu.reset_faults();
+                        gps.reset_faults();
+                    }
+                    _ => {
+                        warn!("❓ Unknown command: {}", cmd);
+                    }
+                }
             }
         }
     }

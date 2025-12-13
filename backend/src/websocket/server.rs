@@ -1,10 +1,11 @@
 //! WebSocket Server Implementation
 //! 
 //! High-performance async WebSocket server that broadcasts fused sensor data
-//! to all connected clients in real-time.
+//! to all connected clients in real-time and handles fault injection commands
+//! and anomaly score updates from ML services.
 
 use anyhow::{Result, Context};
-use futures_util::{StreamExt, SinkExt, stream::{SplitSink, SplitStream}};
+use futures_util::{StreamExt, SinkExt, stream::SplitStream};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
 use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
@@ -14,13 +15,19 @@ use std::net::SocketAddr;
 
 use crate::models::FusedSensorData;
 
-/// WebSocket server for broadcasting sensor data
+/// WebSocket server for broadcasting sensor data and receiving commands
 pub struct WebSocketServer {
     /// Port to listen on
     port: u16,
     
     /// Broadcast sender for distributing sensor data
     sensor_tx: Arc<broadcast::Sender<FusedSensorData>>,
+    
+    /// Command sender for fault injection
+    cmd_tx: Arc<tokio::sync::mpsc::UnboundedSender<String>>,
+    
+    /// Shared anomaly score state (updated by ML service)
+    anomaly_score: Arc<tokio::sync::RwLock<Option<f64>>>,
 }
 
 impl WebSocketServer {
@@ -29,8 +36,15 @@ impl WebSocketServer {
     /// # Arguments
     /// * `port` - Port number to bind to
     /// * `sensor_tx` - Broadcast channel sender for sensor data
-    pub fn new(port: u16, sensor_tx: Arc<broadcast::Sender<FusedSensorData>>) -> Self {
-        Self { port, sensor_tx }
+    /// * `cmd_tx` - Command channel sender for fault injection
+    /// * `anomaly_score` - Shared state for anomaly scores from ML service
+    pub fn new(
+        port: u16,
+        sensor_tx: Arc<broadcast::Sender<FusedSensorData>>,
+        cmd_tx: Arc<tokio::sync::mpsc::UnboundedSender<String>>,
+        anomaly_score: Arc<tokio::sync::RwLock<Option<f64>>>,
+    ) -> Self {
+        Self { port, sensor_tx, cmd_tx, anomaly_score }
     }
 
     /// Start the WebSocket server and accept connections
@@ -47,12 +61,14 @@ impl WebSocketServer {
                 Ok((stream, peer_addr)) => {
                     info!("🔌 New connection from {}", peer_addr);
                     
-                    // Clone the broadcast sender for this connection
+                    // Clone channels and state for this connection
                     let sensor_tx = self.sensor_tx.clone();
+                    let cmd_tx = self.cmd_tx.clone();
+                    let anomaly_score = self.anomaly_score.clone();
                     
                     // Spawn a task to handle this client connection
                     tokio::spawn(async move {
-                        if let Err(e) = handle_connection(stream, peer_addr, sensor_tx).await {
+                        if let Err(e) = handle_connection(stream, peer_addr, sensor_tx, cmd_tx, anomaly_score).await {
                             warn!("⚠️  Connection error for {}: {}", peer_addr, e);
                         }
                         info!("👋 Client {} disconnected", peer_addr);
@@ -71,6 +87,8 @@ async fn handle_connection(
     stream: TcpStream,
     peer_addr: SocketAddr,
     sensor_tx: Arc<broadcast::Sender<FusedSensorData>>,
+    cmd_tx: Arc<tokio::sync::mpsc::UnboundedSender<String>>,
+    anomaly_score: Arc<tokio::sync::RwLock<Option<f64>>>,
 ) -> Result<()> {
     // Upgrade TCP connection to WebSocket
     let ws_stream = accept_async(stream)
@@ -98,9 +116,9 @@ async fn handle_connection(
         .await
         .context("Failed to send welcome message")?;
     
-    // Spawn task to receive messages from client (e.g., ML predictions, commands)
-   let mut receive_task = tokio::spawn(async move {
-        handle_incoming_messages(&mut ws_receiver, peer_addr).await
+    // Spawn task to receive messages from client (e.g., commands, anomaly scores)
+    let mut receive_task = tokio::spawn(async move {
+        handle_incoming_messages(&mut ws_receiver, peer_addr, cmd_tx, anomaly_score).await
     });
     
     // Main loop: broadcast sensor data to this client
@@ -151,13 +169,12 @@ async fn handle_connection(
 
 /// Handle incoming messages from a client
 /// 
-/// This allows bidirectional communication for:
-/// - ML anomaly predictions
-/// - Control commands (fault injection, parameter updates)
-/// - Client heartbeats
+/// This allows bidirectional communication for commands, anomaly scores, and control
 async fn handle_incoming_messages(
     ws_receiver: &mut SplitStream<WebSocketStream<TcpStream>>,
     peer_addr: SocketAddr,
+    cmd_tx: Arc<tokio::sync::mpsc::UnboundedSender<String>>,
+    anomaly_score: Arc<tokio::sync::RwLock<Option<f64>>>,
 ) {
     while let Some(msg_result) = ws_receiver.next().await {
         match msg_result {
@@ -168,13 +185,13 @@ async fn handle_incoming_messages(
                         
                         // Parse incoming JSON messages
                         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                            handle_client_message(json, peer_addr).await;
+                            handle_client_message(json, peer_addr, &cmd_tx, &anomaly_score).await;
                         }
                     }
                     Message::Binary(data) => {
                         debug!("📥 Received binary from {}: {} bytes", peer_addr, data.len());
                     }
-                    Message::Ping(data) => {
+                    Message::Ping(_data) => {
                         debug!("🏓 Ping from {}", peer_addr);
                         // Pong is automatically handled by tungstenite
                     }
@@ -199,22 +216,40 @@ async fn handle_incoming_messages(
 }
 
 /// Handle specific client messages
-async fn handle_client_message(json: serde_json::Value, peer_addr: SocketAddr) {
+async fn handle_client_message(
+    json: serde_json::Value,
+    peer_addr: SocketAddr,
+    cmd_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+    anomaly_score: &Arc<tokio::sync::RwLock<Option<f64>>>,
+) {
     // Extract message type
     if let Some(msg_type) = json.get("type").and_then(|v| v.as_str()) {
         match msg_type {
-            "anomaly_prediction" => {
-                // ML service sending back anomaly scores
-                if let Some(score) = json.get("score").and_then(|v| v.as_f64()) {
-                    debug!("🤖 ML anomaly score from {}: {}", peer_addr, score);
-                    // In a full implementation, would update FusedSensorData with this score
+            "command" => {
+                // Handle control commands (fault injection)
+                if let Some(action) = json.get("action").and_then(|v| v.as_str()) {
+                    info!("⚡ Command from {}: {}", peer_addr, action);
+                    
+                    // Extract fault type from parameters
+                    if action == "inject_fault" {
+                        if let Some(params) = json.get("parameters") {
+                            if let Some(fault_type) = params.get("fault_type").and_then(|v| v.as_str()) {
+                                info!("🎯 Fault injection request: {}", fault_type);
+                                // Send command to sensor loop
+                                let _ = cmd_tx.send(fault_type.to_string());
+                            }
+                        }
+                    }
                 }
             }
-            "command" => {
-                // Handle control commands (e.g., fault injection)
-                if let Some(cmd) = json.get("action").and_then(|v| v.as_str()) {
-                    info!("⚡ Command from {}: {}", peer_addr, cmd);
-                    // Could trigger fault injection, parameter changes, etc.
+            "anomaly_prediction" => {
+                // Handle anomaly score updates from ML service
+                if let Some(score) = json.get("score").and_then(|v| v.as_f64()) {
+                    debug!("🤖 Anomaly score from {}: {:.3}", peer_addr, score);
+                    
+                    // Update shared anomaly score state
+                    let mut anomaly_state = anomaly_score.write().await;
+                    *anomaly_state = Some(score);
                 }
             }
             "heartbeat" => {
