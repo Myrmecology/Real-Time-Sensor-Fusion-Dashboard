@@ -2,6 +2,8 @@
 
 A production-grade real-time sensor fusion system with AI-powered anomaly detection and mission-control visualization.
 
+FOR A VIDEO DEMO OF THIS PROJECT, please visit: https://www.youtube.com/watch?v=tQydZrBoRSc
+
 ## 🎯 Overview
 
 This project demonstrates:
