@@ -241,3 +241,4 @@ Potential additions:
 ---
 
 **Built with ❤️ using Rust, Python, and React**
+Happy coding and never stop learning 
