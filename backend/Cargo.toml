@@ -22,7 +22,7 @@ tungstenite = "0.21"
 
 # Math & Signal Processing
 nalgebra = "0.32"  # Linear algebra for sensor fusion
-rand = "0.8"        # Sensor simulation with realistic noise
+rand = "0.9"        # Sensor simulation with realistic noise
 rand_distr = "0.4"  # Statistical distributions for noise
 
 # Time & Synchronization
